@@ -5,7 +5,6 @@ import { ModuleRef } from '@nestjs/core';
 import {
   TypeOrmConnectionFactory,
   getEntityManagerToken,
-  TypeOrmModuleOptions,
   getConnectionToken,
   getConnectionName,
 } from '@nestjs/typeorm';
@@ -23,7 +22,10 @@ import {
   ConnectionOptions,
   createConnection,
   Connection,
+  EntityManager,
 } from 'typeorm';
+
+import { TypeOrmModuleOptions } from './lazy-typeorm.interface';
 
 @Global()
 @Module({})
@@ -40,7 +42,7 @@ export class LazyTypeOrmCoreModule {
   static forRoot(options: TypeOrmModuleOptions = {}): DynamicModule {
     const connectionProvider = {
       provide: getConnectionToken(options as ConnectionOptions) as string,
-      useFactory: async () => {
+      useFactory: async (): Promise<Observable<Connection>> => {
         const firstConnection = await this.createLazyConnection(options);
 
         return new Observable((subscriber) => {
@@ -90,7 +92,7 @@ export class LazyTypeOrmCoreModule {
         ) as Type<Connection>,
       );
 
-      connection && (await connection.close());
+      await connection?.close();
     } catch (e) {
       LazyTypeOrmCoreModule.logger.error(e?.message);
     }
@@ -101,7 +103,9 @@ export class LazyTypeOrmCoreModule {
   ): Provider {
     return {
       provide: getEntityManagerToken(options) as string,
-      useFactory: (connectionObservable: Observable<Connection>) => {
+      useFactory: (
+        connectionObservable: Observable<Connection>,
+      ): Observable<EntityManager> => {
         return connectionObservable.pipe(
           map((connection: Connection) => {
             return connection.manager;
@@ -119,7 +123,7 @@ export class LazyTypeOrmCoreModule {
 
     if (!firstConnection) {
       const retryDelay = options.retryDelay ?? 5000;
-      const body = async () => {
+      const body = async (): Promise<void> => {
         const connection = await this.createConnectionFactory(options);
         if (!connection) {
           setTimeout(body, retryDelay);
@@ -151,6 +155,7 @@ export class LazyTypeOrmCoreModule {
           const connectionName = getConnectionName(
             options as ConnectionOptions,
           );
+
           const manager = getConnectionManager();
 
           if (manager.has(connectionName)) {
@@ -161,7 +166,11 @@ export class LazyTypeOrmCoreModule {
             }
           }
         }
-      } catch {}
+      } catch (error) {
+        if (options.verboseRetryLog) {
+          this.logger.error(error.message);
+        }
+      }
 
       if (!options.type) {
         return createTypeormConnection();
@@ -187,7 +196,7 @@ export class LazyTypeOrmCoreModule {
         entities,
       } as ConnectionOptions);
     } catch (error) {
-      if (!error.message.includes('ECONNREFUSED')) {
+      if (options.verboseRetryLog) {
         this.logger.error(error.message);
       }
     }

@@ -16,7 +16,7 @@ export function createLazyTypeOrmProviders(
 ): Provider[] {
   return (entities || []).map((entity) => ({
     provide: getRepositoryToken(entity, connection),
-    useFactory: (connection: Observable<Connection>) => {
+    useFactory: (connection: Observable<Connection>): Observable<unknown> => {
       return connection.pipe(
         map((connection: Connection) => {
           if (

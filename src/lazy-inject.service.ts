@@ -2,7 +2,7 @@ import { OnModuleInit } from '@nestjs/common';
 import { Repository } from 'typeorm';
 import { Observable } from 'rxjs';
 
-export abstract class LazyInjectService implements OnModuleInit {
+export abstract class TypeOrmLazyInjectService implements OnModuleInit {
   private repositories: { [key: string]: Repository<unknown> };
 
   constructor(
@@ -24,7 +24,7 @@ export abstract class LazyInjectService implements OnModuleInit {
     );
   }
 
-  onModuleInit() {
+  onModuleInit(): void {
     Object.assign(this, this.repositories);
   }
 }

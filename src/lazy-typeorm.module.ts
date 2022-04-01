@@ -6,8 +6,8 @@ import { Connection, ConnectionOptions } from 'typeorm';
 import { DynamicModule, Module } from '@nestjs/common';
 import { TypeOrmModuleOptions } from '@nestjs/typeorm';
 
-import { LazyTypeOrmCoreModule } from './lazy-typeorm-core.module';
 import { createLazyTypeOrmProviders } from './lazy-typeorm.provider';
+import { LazyTypeOrmCoreModule } from './lazy-typeorm-core.module';
 
 @Module({})
 export class LazyTypeOrmModule {
