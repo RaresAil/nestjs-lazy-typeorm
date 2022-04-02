@@ -2,6 +2,9 @@ import { OnModuleInit } from '@nestjs/common';
 import { Repository } from 'typeorm';
 import { Observable } from 'rxjs';
 
+/**
+ * This class is used to load TypeORM entities lazily.
+ */
 export abstract class TypeOrmLazyInjectService implements OnModuleInit {
   private repositories: { [key: string]: Repository<unknown> };
 

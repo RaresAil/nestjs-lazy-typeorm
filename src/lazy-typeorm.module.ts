@@ -11,6 +11,12 @@ import { TypeOrmModuleOptions } from './lazy-typeorm.interface';
 
 @Module({})
 export class LazyTypeOrmModule {
+  /**
+   * Creates a lazy connection provider.
+   *
+   * @param options TypeOrmModuleOptions
+   * @returns DynamicModule
+   */
   static forRoot(options?: TypeOrmModuleOptions): DynamicModule {
     return {
       module: LazyTypeOrmModule,
@@ -18,6 +24,13 @@ export class LazyTypeOrmModule {
     };
   }
 
+  /**
+   * Adds entities to the TypeOrmModule.
+   *
+   * @param entities EntityClassOrSchema[]
+   * @param connection Connection
+   * @returns DynamicModule
+   */
   static forFeature(
     entities: EntityClassOrSchema[] = [],
     connection:
