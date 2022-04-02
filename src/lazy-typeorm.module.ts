@@ -4,10 +4,10 @@ import { EntitiesMetadataStorage } from '@nestjs/typeorm/dist/entities-metadata.
 import { DEFAULT_CONNECTION_NAME } from '@nestjs/typeorm/dist/typeorm.constants';
 import { Connection, ConnectionOptions } from 'typeorm';
 import { DynamicModule, Module } from '@nestjs/common';
-import { TypeOrmModuleOptions } from '@nestjs/typeorm';
 
 import { createLazyTypeOrmProviders } from './lazy-typeorm.provider';
 import { LazyTypeOrmCoreModule } from './lazy-typeorm-core.module';
+import { TypeOrmModuleOptions } from './lazy-typeorm.interface';
 
 @Module({})
 export class LazyTypeOrmModule {

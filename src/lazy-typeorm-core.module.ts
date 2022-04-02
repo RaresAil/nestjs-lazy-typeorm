@@ -1,7 +1,6 @@
 import { EntitiesMetadataStorage } from '@nestjs/typeorm/dist/entities-metadata.storage';
 import { TYPEORM_MODULE_OPTIONS } from '@nestjs/typeorm/dist/typeorm.constants';
 import { map, Observable, Subject } from 'rxjs';
-import { ModuleRef } from '@nestjs/core';
 import {
   TypeOrmConnectionFactory,
   getEntityManagerToken,
@@ -15,7 +14,6 @@ import {
   Inject,
   Logger,
   Module,
-  Type,
 } from '@nestjs/common';
 import {
   getConnectionManager,
@@ -31,29 +29,41 @@ import { TypeOrmModuleOptions } from './lazy-typeorm.interface';
 @Module({})
 export class LazyTypeOrmCoreModule {
   private static readonly logger = new Logger('LazyTypeOrmCoreModule');
-  private static globalConnection = new Subject<Connection | undefined>();
+  private static connectionSubjects: {
+    [key: string]: Subject<Connection>;
+  } = {};
+  private static connections: {
+    [key: string]: Connection;
+  } = {};
 
   constructor(
     @Inject(TYPEORM_MODULE_OPTIONS)
     private readonly options: TypeOrmModuleOptions,
-    private readonly moduleRef: ModuleRef,
   ) {}
 
   static forRoot(options: TypeOrmModuleOptions = {}): DynamicModule {
+    const connectionToken = getConnectionToken(
+      options as ConnectionOptions,
+    ) as string;
+
+    this.connectionSubjects[connectionToken] = new Subject<Connection>();
+
     const connectionProvider = {
-      provide: getConnectionToken(options as ConnectionOptions) as string,
+      provide: connectionToken,
       useFactory: async (): Promise<Observable<Connection>> => {
         const firstConnection = await this.createLazyConnection(options);
 
         return new Observable((subscriber) => {
           if (firstConnection) {
+            this.connections[connectionToken] = firstConnection;
             subscriber.next(firstConnection);
             subscriber.complete();
             return;
           }
 
-          this.globalConnection.subscribe((connection) => {
+          this.connectionSubjects[connectionToken].subscribe((connection) => {
             if (connection) {
+              this.connections[connectionToken] = connection;
               subscriber.next(connection);
               subscriber.complete();
             }
@@ -86,13 +96,11 @@ export class LazyTypeOrmCoreModule {
     }
 
     try {
-      const connection = this.moduleRef.get<Connection>(
-        getConnectionToken(
-          this.options as ConnectionOptions,
-        ) as Type<Connection>,
-      );
+      const connectionToken = getConnectionToken(
+        this.options as ConnectionOptions,
+      ) as string;
 
-      await connection?.close();
+      await LazyTypeOrmCoreModule.connections[connectionToken]?.close();
     } catch (e) {
       LazyTypeOrmCoreModule.logger.error(e?.message);
     }
@@ -119,6 +127,10 @@ export class LazyTypeOrmCoreModule {
   private static async createLazyConnection(
     options: TypeOrmModuleOptions,
   ): Promise<Connection | undefined> {
+    const connectionToken = getConnectionToken(
+      options as ConnectionOptions,
+    ) as string;
+
     const firstConnection = await this.createConnectionFactory(options);
 
     if (!firstConnection) {
@@ -131,7 +143,7 @@ export class LazyTypeOrmCoreModule {
         }
 
         this.logger.log('Connected to database');
-        this.globalConnection.next(connection);
+        this.connectionSubjects[connectionToken].next(connection);
       };
 
       setTimeout(body, retryDelay);
