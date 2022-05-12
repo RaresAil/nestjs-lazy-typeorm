@@ -30,7 +30,6 @@ npm install @raresail nestjs-lazy-typeorm
         password: '',
         database: 'lazy',
         autoLoadEntities: true,
-        synchronize: true,
       }),
       LazyTypeOrmModule.forFeature([Demo, SecondDemoRepository]),
     ],

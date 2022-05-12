@@ -29,6 +29,9 @@ import { TypeOrmModuleOptions } from './lazy-typeorm.interface';
 @Module({})
 export class LazyTypeOrmCoreModule {
   private static readonly logger = new Logger('LazyTypeOrmCoreModule');
+  private static connectionRetires: {
+    [key: string]: NodeJS.Timeout;
+  } = {};
   private static connectionSubjects: {
     [key: string]: Subject<Connection>;
   } = {};
@@ -95,6 +98,14 @@ export class LazyTypeOrmCoreModule {
       return;
     }
 
+    Object.entries(LazyTypeOrmCoreModule.connectionRetires).forEach(
+      ([, timeout]) => {
+        try {
+          clearTimeout(timeout);
+        } catch {}
+      },
+    );
+
     try {
       const connectionToken = getConnectionToken(
         this.options as ConnectionOptions,
@@ -138,7 +149,11 @@ export class LazyTypeOrmCoreModule {
       const body = async (): Promise<void> => {
         const connection = await this.createConnectionFactory(options);
         if (!connection) {
-          setTimeout(body, retryDelay);
+          this.connectionRetires[connectionToken] = setTimeout(
+            body,
+            retryDelay,
+          );
+
           return;
         }
 
@@ -146,7 +161,7 @@ export class LazyTypeOrmCoreModule {
         this.connectionSubjects[connectionToken].next(connection);
       };
 
-      setTimeout(body, retryDelay);
+      this.connectionRetires[connectionToken] = setTimeout(body, retryDelay);
       return;
     }
 
